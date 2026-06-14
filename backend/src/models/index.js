@@ -1,10 +1,20 @@
 // backend/src/models/index.js
-const sequelize = require('../config/database');
-const User = require('./User');
-const Wallet = require('./Wallet');
-const Bus = require('./Bus');
-const Route = require('./Route');
-const Transaction = require('./Transaction');
+const { Sequelize, DataTypes } = require('sequelize');
+const sequelize = require('../config/database'); // Direct connection instance
+
+// Import factory functions
+const UserModel = require('./User');
+const WalletModel = require('./Wallet');
+const BusModel = require('./Bus');
+const RouteModel = require('./Route');
+const TransactionModel = require('./Transaction');
+
+// Initialize models by executing their factories
+const User = UserModel(sequelize, DataTypes);
+const Wallet = WalletModel(sequelize, DataTypes);
+const Bus = BusModel(sequelize, DataTypes);
+const Route = RouteModel(sequelize, DataTypes);
+const Transaction = TransactionModel(sequelize, DataTypes);
 
 // ================================
 // ASSOCIATIONS
@@ -44,6 +54,7 @@ Transaction.belongsTo(Bus, { foreignKey: 'busId', as: 'bus' });
 
 module.exports = {
     sequelize,
+    Sequelize,
     User,
     Wallet,
     Bus,

@@ -10,10 +10,7 @@ const {
     SMS_TEMPLATES,
 } = require('../config/constants');
 
-// ================================
-// GET WALLET
-// GET /api/v1/wallet
-// ================================
+// GET WALLET -> GET /api/v1/wallet
 exports.getWallet = async (req, res) => {
     try {
         const wallet = await Wallet.findOne({
@@ -27,7 +24,6 @@ exports.getWallet = async (req, res) => {
             });
         }
 
-        // Today's stats
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -49,9 +45,9 @@ exports.getWallet = async (req, res) => {
             success: true,
             data: {
                 balance: parseFloat(wallet.balance),
-                pendingBalance: parseFloat(wallet.pendingBalance),
-                totalSpent: parseFloat(wallet.totalSpent),
-                totalSaved: parseFloat(wallet.totalSaved),
+                pendingBalance: parseFloat(wallet.pendingBalance || 0),
+                totalSpent: parseFloat(wallet.totalSpent || 0),
+                totalSaved: parseFloat(wallet.totalSaved || 0),
                 todayTrips: parseInt(todayStats?.count || 0),
                 todayFare: parseFloat(todayStats?.total || 0),
             },
@@ -63,21 +59,10 @@ exports.getWallet = async (req, res) => {
     }
 };
 
-// ================================
-// GET TRANSACTIONS
-// GET /api/v1/wallet/transactions
-// ================================
+// GET TRANSACTIONS -> GET /api/v1/wallet/transactions
 exports.getTransactions = async (req, res) => {
     try {
-        const {
-            page = 1,
-            limit = 20,
-            type,
-            status,
-            startDate,
-            endDate,
-        } = req.query;
-
+        const { page = 1, limit = 20, type, status, startDate, endDate } = req.query;
         const offset = (parseInt(page) - 1) * parseInt(limit);
         const where = {
             [Op.or]: [
@@ -139,16 +124,11 @@ exports.getTransactions = async (req, res) => {
     }
 };
 
-// ================================
-// CLAIM PENDING BALANCE
-// POST /api/v1/wallet/claim
-// ================================
+// CLAIM PENDING BALANCE -> POST /api/v1/wallet/claim
 exports.claimBalance = async (req, res) => {
     const dbTransaction = await sequelize.transaction();
-
     try {
         const userId = req.user.userId;
-
         const [wallet, user] = await Promise.all([
             Wallet.findOne({
                 where: { userId },
@@ -170,7 +150,6 @@ exports.claimBalance = async (req, res) => {
         const newBalance = parseFloat(wallet.balance) + pendingAmount;
         const claimRef = `CLAIM-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
-        // Transfer to MoMo
         try {
             await moolreService.sendBalance({
                 amount: pendingAmount,
@@ -188,13 +167,11 @@ exports.claimBalance = async (req, res) => {
             });
         }
 
-        // Update wallet
         await wallet.update({
             pendingBalance: 0,
             balance: newBalance,
         }, { transaction: dbTransaction });
 
-        // Record transaction
         await Transaction.create({
             reference: claimRef,
             type: TRANSACTION_TYPES.BALANCE_RETURN,
@@ -210,7 +187,6 @@ exports.claimBalance = async (req, res) => {
 
         await dbTransaction.commit();
 
-        // Notify
         await moolreService.sendSMS({
             to: user.phone,
             message: SMS_TEMPLATES.BALANCE_RETURNED(

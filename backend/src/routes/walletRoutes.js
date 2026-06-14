@@ -1,11 +1,13 @@
 // backend/src/routes/walletRoutes.js
 const express = require('express');
 const router = express.Router();
-const controller = require('../controllers/walletController');
-const { authenticate } = require('../middleware/auth');
+const walletController = require('../controllers/walletController');
+// const { protect } = require('../middleware/authMiddleware'); // Uncomment when auth middleware is ready
 
-router.get('/', authenticate, controller.getWallet);
-router.get('/transactions', authenticate, controller.getTransactions);
-router.post('/claim', authenticate, controller.claimBalance);
+// router.use(protect); // Secure these endpoints
+
+router.get('/', walletController.getWallet);
+router.get('/transactions', walletController.getTransactions);
+router.post('/claim', walletController.claimBalance);
 
 module.exports = router;
