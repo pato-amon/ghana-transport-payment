@@ -1,0 +1,120 @@
+/* frontend/src/index.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans;
+  }
+}
+
+@layer components {
+
+  /* Reusable Button Styles */
+  .btn-primary {
+    @apply bg-ghana-green text-white px-6 py-3 rounded-xl font-semibold text-sm tracking-wide hover:bg-green-700 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 w-full;
+  }
+
+  .btn-secondary {
+    @apply bg-ghana-gold text-gray-900 px-6 py-3 rounded-xl font-semibold text-sm tracking-wide hover:bg-yellow-500 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 w-full;
+  }
+
+  .btn-danger {
+    @apply bg-ghana-red text-white px-6 py-3 rounded-xl font-semibold text-sm hover:bg-red-700 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 w-full;
+  }
+
+  .btn-outline {
+    @apply border-2 border-ghana-green text-ghana-green px-6 py-3 rounded-xl font-semibold text-sm hover:bg-ghana-green hover:text-white transition-all duration-200 flex items-center justify-center gap-2 w-full;
+  }
+
+  /* Card Styles */
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-5;
+  }
+
+  .card-hover {
+    @apply card hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer;
+  }
+
+  /* Input Styles */
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-ghana-green focus:border-transparent focus:bg-white placeholder:text-gray-400 transition-all duration-200;
+  }
+
+  /* Status Badges */
+  .badge-success {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold;
+  }
+
+  .badge-warning {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold;
+  }
+
+  .badge-danger {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold;
+  }
+
+  /* Ghana Flag Gradient */
+  .ghana-gradient {
+    @apply bg-gradient-to-r from-ghana-red via-ghana-gold to-ghana-green;
+  }
+
+  /* Bottom Nav */
+  .bottom-nav-item {
+    @apply flex flex-col items-center gap-1 py-2 px-4 text-gray-400 transition-colors duration-200;
+  }
+
+  .bottom-nav-item.active {
+    @apply text-ghana-green;
+  }
+}
+
+@layer utilities {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulseGreen {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 107, 63, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 10px rgba(0, 107, 63, 0);
+  }
+}
