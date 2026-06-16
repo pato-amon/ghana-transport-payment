@@ -3,18 +3,16 @@ const express = require('express');
 const router = express.Router();
 
 const authRoutes = require('./authRoutes');
-const paymentRoutes = require('./paymentRoutes');
 const walletRoutes = require('./walletRoutes');
+const ussdRoutes = require('./ussdRoutes');
 const conductorRoutes = require('./conductorRoutes');
 const operatorRoutes = require('./operatorRoutes');
-const ussdRoutes = require('./ussdRoutes');
 
+// Mounting Sub-Routers
 router.use('/auth', authRoutes);
-router.use('/payments', paymentRoutes);
 router.use('/wallet', walletRoutes);
+router.use('/ussd', ussdRoutes);
 router.use('/conductor', conductorRoutes);
 router.use('/operator', operatorRoutes);
-router.use('/ussd', ussdRoutes);
-router.use('/trips', paymentRoutes); // shared
 
 module.exports = router;
