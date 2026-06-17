@@ -52,6 +52,11 @@ app.set('io', io);
 // ================================
 app.use(`/api/${process.env.API_VERSION}`, routes);
 
+// Add this right above your /health check route
+app.get('/', (req, res) => {
+    res.send('Welcome to the TransportGH API Gateway!');
+});
+
 // Health check
 app.get('/health', (req, res) => {
     res.json({
