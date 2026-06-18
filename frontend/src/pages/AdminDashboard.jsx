@@ -16,13 +16,40 @@ export default function AdminDashboard() {
     const fetchAdminData = async () => {
         setLoading(true);
         setError('');
-        // Replace endpoint references with your proxy/config base domain as required
+
         const token = localStorage.getItem('token');
         const headers = {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
         };
 
+        // 🎟️ ESCAPE HATCH 1: Intercept Mock Sessions for Beautiful Local Rendering
+        if (!token || token === 'mock-signed-admin-jwt-token-xyz789') {
+            console.log(`⚡ Mock mode active. Seeding "${activeTab}" interface with sample analytics.`);
+
+            setTimeout(() => {
+                if (activeTab === 'overview') {
+                    setMetrics({
+                        totalUsers: 148,
+                        activeSockets: 24,
+                        memoryUsage: '44.2 MB',
+                        uptime: '6 days, 4 hours',
+                        databaseStatus: 'STABLE (LOCAL_OVERRIDE)'
+                    });
+                } else if (activeTab === 'users') {
+                    setUsers([
+                        { id: 'usr_1', fullName: 'Kwame Mensah', phone: '0244123456', network: 'mtn', role: 'passenger', isVerified: true, isActive: true },
+                        { id: 'usr_2', fullName: 'Abena Osei', phone: '0207123456', network: 'telecel', role: 'driver', isVerified: true, isActive: true },
+                        { id: 'usr_3', fullName: 'Kofi Emmanuel', phone: '0553987654', network: 'mtn', role: 'driver', isVerified: false, isActive: false },
+                        { id: 'usr_4', fullName: 'Amma Serwaa', phone: '0261112223', network: 'at', role: 'passenger', isVerified: true, isActive: true }
+                    ]);
+                }
+                setLoading(false);
+            }, 400); // Tiny artificial delay to mimic network response naturally
+            return;
+        }
+
+        // LIVE DATABASE FALLBACK
         try {
             if (activeTab === 'overview') {
                 const res = await fetch('http://localhost:5000/api/v1/admin/metrics', { headers });
@@ -43,15 +70,23 @@ export default function AdminDashboard() {
     };
 
     const toggleUserActive = async (userId) => {
+        const token = localStorage.getItem('token');
+
+        // 🎟️ ESCAPE HATCH 2: Handle Interactive Status Toggling Instantly
+        if (!token || token === 'mock-signed-admin-jwt-token-xyz789') {
+            console.log(`🔄 Mock status toggle processed for account ID: ${userId}`);
+            setUsers(users.map(u => u.id === userId ? { ...u, isActive: !u.isActive } : u));
+            return;
+        }
+
+        // LIVE DATABASE STATUS MUTATION
         try {
-            const token = localStorage.getItem('token');
             const res = await fetch(`http://localhost:5000/api/v1/admin/users/${userId}/toggle-status`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
             if (data.success) {
-                // Update state reactively locally
                 setUsers(users.map(u => u.id === userId ? { ...u, isActive: !u.isActive } : u));
             }
         } catch (err) {

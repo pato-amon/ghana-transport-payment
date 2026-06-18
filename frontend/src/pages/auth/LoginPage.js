@@ -21,7 +21,7 @@ const LoginPage = () => {
         setError('');
         setIsLoading(true);
 
-        // 1. Normalize the phone number to standard local format (024XXXXXXX)
+        // 1. Normalize phone format (024XXXXXXX)
         let cleanPhone = phoneNumber.trim();
         if (cleanPhone.startsWith('+233')) {
             cleanPhone = '0' + cleanPhone.substring(4);
@@ -36,7 +36,25 @@ const LoginPage = () => {
         }
 
         try {
-            // 2. Send the exact payload structure your backend controller expects 🚀
+            // 2. 🎟️ HARDCODED ADMIN ESCAPE HATCH 
+            // If logging in as the master admin, log in instantly without hitting the database!
+            if (cleanPhone === '0241234567') {
+                console.log("⚡ Admin override triggered. Bypassing port 5000 database check.");
+
+                setToken('mock-signed-admin-jwt-token-xyz789');
+                setUser({
+                    id: 'usr_admin_master',
+                    fullName: 'System Administrator',
+                    phone: '0241234567',
+                    role: 'admin',
+                    walletBalance: 0.00
+                });
+
+                navigate('/admin');
+                return; // Stop execution here so we don't call the backend API
+            }
+
+            // 3. LIVE BACKEND FALLBACK (For all other user numbers: passengers, conductors, etc.)
             const response = await fetch('http://localhost:5000/api/v1/auth/login', {
                 method: 'POST',
                 headers: {
@@ -44,22 +62,22 @@ const LoginPage = () => {
                 },
                 body: JSON.stringify({
                     phone: cleanPhone,
-                    password: password, // Changed from 'pin' back to 'password'
-                    role: role          // Pass the selected role tab just in case your backend enforces it
+                    pin: password,
+                    role: role
                 })
             });
 
             const data = await response.json();
 
             if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Login failed. Please try again.');
+                const serverError = data.message || data.error || (data.errors && data.errors[0]?.msg) || 'Login failed. Please try again.';
+                throw new Error(serverError);
             }
 
-            // 3. Save session values
             setToken(data.token);
             setUser(data.user);
 
-            // 4. Route based on database profile role
+            // Dynamic redirect based on database role
             if (data.user.role === 'admin') {
                 navigate('/admin');
             } else if (data.user.role === ROLES.CONDUCTOR) {
@@ -71,7 +89,7 @@ const LoginPage = () => {
             }
 
         } catch (err) {
-            setError(err.message || 'Error connecting to the authentication server.');
+            setError(err.message);
         } finally {
             setIsLoading(false);
         }
@@ -155,7 +173,6 @@ const LoginPage = () => {
     );
 };
 
-// Inline styles to guarantee code compiles cleanly without external CSS files
 const styles = {
     container: { display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f4f6f8', padding: '20px', fontFamily: 'system-ui, sans-serif' },
     card: { backgroundColor: '#ffffff', padding: '40px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', width: '100%', maxWidth: '420px' },
