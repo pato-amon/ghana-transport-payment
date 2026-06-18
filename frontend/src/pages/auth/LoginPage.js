@@ -21,48 +21,57 @@ const LoginPage = () => {
         setError('');
         setIsLoading(true);
 
-        // Basic formatting validation for local numbers
-        let formattedPhone = phoneNumber.trim();
-        if (formattedPhone.startsWith('0')) {
-            formattedPhone = '+233' + formattedPhone.substring(1);
-        } else if (!formattedPhone.startsWith('+233')) {
-            setError('Please enter a valid Ghana phone number');
+        // 1. Normalize the phone number to standard local format (024XXXXXXX)
+        let cleanPhone = phoneNumber.trim();
+        if (cleanPhone.startsWith('+233')) {
+            cleanPhone = '0' + cleanPhone.substring(4);
+        } else if (!cleanPhone.startsWith('0')) {
+            cleanPhone = '0' + cleanPhone;
+        }
+
+        if (!/^0\d{9}$/.test(cleanPhone)) {
+            setError('Please enter a valid 10-digit phone number.');
             setIsLoading(false);
             return;
         }
 
         try {
-            // Mock API Call - Replace this with your actual fetch/axios call to services/api
-            // const response = await authService.login({ phone: formattedPhone, password, role });
+            // 2. Send the exact payload structure your backend controller expects 🚀
+            const response = await fetch('http://localhost:5000/api/v1/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    phone: cleanPhone,
+                    password: password, // Changed from 'pin' back to 'password'
+                    role: role          // Pass the selected role tab just in case your backend enforces it
+                })
+            });
 
-            // Simulating a minor network latency delay
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            const data = await response.json();
 
-            // Mock Data Output simulating a database response
-            const mockUser = {
-                id: 'usr_abc123',
-                fullName: 'Kwame Mensah',
-                phone: formattedPhone,
-                role: role,
-                walletBalance: 45.50 // Pre-populating balance in GHS
-            };
-            const mockToken = 'mock-jwt-token-xyz789';
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Login failed. Please try again.');
+            }
 
-            // Save credentials to Zustand global store
-            setToken(mockToken);
-            setUser(mockUser);
+            // 3. Save session values
+            setToken(data.token);
+            setUser(data.user);
 
-            // Redirect dynamically based on the role logging in
-            if (role === ROLES.CONDUCTOR) {
+            // 4. Route based on database profile role
+            if (data.user.role === 'admin') {
+                navigate('/admin');
+            } else if (data.user.role === ROLES.CONDUCTOR) {
                 navigate('/conductor');
-            } else if (role === ROLES.OPERATOR) {
+            } else if (data.user.role === ROLES.OPERATOR) {
                 navigate('/operator');
             } else {
-                navigate('/passenger'); // Standard passenger home
+                navigate('/passenger');
             }
 
         } catch (err) {
-            setError(err.message || 'Invalid credentials. Please try again.');
+            setError(err.message || 'Error connecting to the authentication server.');
         } finally {
             setIsLoading(false);
         }
@@ -146,7 +155,7 @@ const LoginPage = () => {
     );
 };
 
-// Inline styles to guarantee code compiles nicely without extra CSS files
+// Inline styles to guarantee code compiles cleanly without external CSS files
 const styles = {
     container: { display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f4f6f8', padding: '20px', fontFamily: 'system-ui, sans-serif' },
     card: { backgroundColor: '#ffffff', padding: '40px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', width: '100%', maxWidth: '420px' },

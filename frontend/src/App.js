@@ -1,8 +1,9 @@
-// frontend/src/App.jsx  ← FINAL FIXED VERSION
+// frontend/src/App.jsx
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from 'react-query';
+import AdminDashboard from './pages/AdminDashboard';
 
 // Auth Pages
 import LandingPage from './pages/LandingPage';
@@ -59,14 +60,28 @@ function App() {
             },
           }}
         />
+
         <Routes>
-          {/* Public */}
+          {/* ========================================================== */}
+          {/* PUBLIC ROUTES                                              */}
+          {/* ========================================================== */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/verify" element={<OTPVerifyPage />} />
 
-          {/* Passenger */}
+          {/* ========================================================== */}
+          {/* SYSTEM ADMIN MANAGEMENT (Protected using your custom guard!) */}
+          {/* ========================================================== */}
+          <Route path="/admin" element={
+            <ProtectedRoute role="admin">
+              <AdminDashboard />
+            </ProtectedRoute>
+          } />
+
+          {/* ========================================================== */}
+          {/* PASSENGER ROUTES                                           */}
+          {/* ========================================================== */}
           <Route path="/passenger" element={
             <ProtectedRoute role="passenger">
               <PassengerLayout />
@@ -79,7 +94,9 @@ function App() {
             <Route path="profile" element={<ProfilePage />} />
           </Route>
 
-          {/* Conductor */}
+          {/* ========================================================== */}
+          {/* CONDUCTOR ROUTES                                           */}
+          {/* ========================================================== */}
           <Route path="/conductor" element={
             <ProtectedRoute role="conductor">
               <ConductorLayout />
@@ -91,7 +108,9 @@ function App() {
             <Route path="earnings" element={<EarningsPage />} />
           </Route>
 
-          {/* Operator */}
+          {/* ========================================================== */}
+          {/* OPERATOR ROUTES                                            */}
+          {/* ========================================================== */}
           <Route path="/operator" element={
             <ProtectedRoute role="operator">
               <OperatorLayout />
@@ -103,6 +122,7 @@ function App() {
             <Route path="routes" element={<RoutesPage />} />
           </Route>
 
+          {/* CATCH-ALL FALLBACK */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
