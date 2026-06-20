@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img">
+  <title>TransportGH Icon</title>
+  <desc>TransportGH token icon mark</desc>
+
+  <defs>
+    <clipPath id="token-clip">
+      <rect x="0" y="0" width="120" height="120" rx="26"/>
+    </clipPath>
+  </defs>
+
+  <!-- Token background -->
+  <rect x="0" y="0" width="120" height="120" rx="26" fill="#1A5C38"/>
+
+  <!-- Ghana flag stripe — clipped to token corners -->
+  <g clip-path="url(#token-clip)">
+    <rect x="0" y="97" width="40" height="23" fill="#CE1126"/>
+    <rect x="40" y="97" width="40" height="23" fill="#FFC107"/>
+    <rect x="80" y="97" width="40" height="23" fill="#2B8A4B"/>
+  </g>
+
+  <!-- T letterform — crossbar -->
+  <rect x="18" y="22" width="84" height="16" rx="5" fill="white"/>
+  <!-- T letterform — stem -->
+  <rect x="52" y="38" width="16" height="54" rx="5" fill="white"/>
+
+</svg>
