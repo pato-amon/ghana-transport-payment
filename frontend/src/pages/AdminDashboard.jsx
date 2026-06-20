@@ -1,5 +1,6 @@
-// frontend/src/pages/AdminDashboard.jsx
+// inside frontend/src/pages/AdminDashboard.jsx
 import React, { useState, useEffect } from 'react';
+import { io } from 'socket.io-client'; // 👈 Import the socket client engine
 
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('overview');
@@ -8,11 +9,47 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    // Fetch initial data
+    // 1. Existing initial database query loader hook
     useEffect(() => {
         fetchAdminData();
     }, [activeTab]);
 
+    // 2. 🔥 NEW: Real-time PostgreSQL Sync Hook
+    useEffect(() => {
+        // Connect to the backend socket gateway
+        const socket = io('http://localhost:5000');
+
+        socket.on('connect', () => {
+            console.log('📡 Connected directly to live backend event pipeline.');
+            // Request access to the secure admin-room channel
+            socket.emit('join-admin-panel');
+        });
+
+        // Capture mutations coming directly out of PostgreSQL pg_notify
+        socket.on('db_mutation', (payload) => {
+            console.log('⚡ Live DB event dropped into UI:', payload);
+
+            if (activeTab === 'users') {
+                if (payload.operation === 'DELETE') {
+                    // Instantly evict the matching object row out of memory state layout
+                    setUsers((prevUsers) => prevUsers.filter(user => user.id !== payload.user_id));
+                } else {
+                    // For INSERT or UPDATE actions, gracefully fetch pristine data sets from database
+                    fetchAdminData();
+                }
+            } else if (activeTab === 'overview') {
+                // If the admin is viewing analytics cards, auto-refresh them to show current counts
+                fetchAdminData();
+            }
+        });
+
+        // Safeguard memory leaks by cleaning up the channel connection when tab closes/unmounts
+        return () => {
+            socket.disconnect();
+        };
+    }, [activeTab]); // Listens for active tab updates to react cleanly to changes
+
+    // ... Rest of your existing fetchAdminData, toggleUserActive, and deleteUser code blocks ...
     const fetchAdminData = async () => {
         setLoading(true);
         setError('');
@@ -45,7 +82,7 @@ export default function AdminDashboard() {
                     ]);
                 }
                 setLoading(false);
-            }, 400); // Tiny artificial delay to mimic network response naturally
+            }, 400);
             return;
         }
 
@@ -91,6 +128,45 @@ export default function AdminDashboard() {
             }
         } catch (err) {
             alert('Error updating database profile state');
+        }
+    };
+
+    // 🚨 NEW DELETE FUNCTIONALITY
+    const deleteUser = async (userId) => {
+        // Find user name for personalized warning dialog context
+        const userTarget = users.find(u => u.id === userId);
+        const userName = userTarget ? userTarget.fullName : 'this account';
+
+        if (!window.confirm(`⚠️ WARNING: Are you sure you want to permanently delete ${userName}? This structural record removal cannot be undone.`)) {
+            return; // Cancel operation if admin backs out
+        }
+
+        const token = localStorage.getItem('token');
+
+        // 🎟️ ESCAPE HATCH 3: Process Local State Eviction Instantly 
+        if (!token || token === 'mock-signed-admin-jwt-token-xyz789') {
+            console.log(`🗑️ Mock user purge processed for database entry ID: ${userId}`);
+            setUsers(users.filter(u => u.id !== userId));
+            return;
+        }
+
+        // LIVE DATABASE REST PURGE ROUTE
+        try {
+            const res = await fetch(`http://localhost:5000/api/v1/admin/users/${userId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await res.json();
+            if (data.success) {
+                setUsers(users.filter(u => u.id !== userId));
+            } else {
+                setError(data.message || 'Backend rejected your administrative user destruction request.');
+            }
+        } catch (err) {
+            alert('Error connecting to engine systems to execute entry destruction.');
         }
     };
 
@@ -199,7 +275,7 @@ export default function AdminDashboard() {
                                                 <th className="p-4">Network Provider</th>
                                                 <th className="p-4">Security Privilege Role</th>
                                                 <th className="p-4">Status Flag Indicators</th>
-                                                <th className="p-4 text-center">System Management Action</th>
+                                                <th className="p-4 text-center">System Management Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 text-sm text-slate-600">
@@ -215,7 +291,7 @@ export default function AdminDashboard() {
                                                         <td className="p-4 uppercase">{user.network}</td>
                                                         <td className="p-4">
                                                             <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${user.role === 'admin' ? 'bg-amber-100 text-amber-800' :
-                                                                    user.role === 'driver' ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700'
+                                                                user.role === 'driver' ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700'
                                                                 }`}>
                                                                 {user.role}
                                                             </span>
@@ -228,16 +304,33 @@ export default function AdminDashboard() {
                                                                 {user.isActive ? 'Active' : 'Banned'}
                                                             </span>
                                                         </td>
-                                                        <td className="p-4 text-center">
-                                                            <button
-                                                                onClick={() => toggleUserActive(user.id)}
-                                                                disabled={user.role === 'admin'}
-                                                                className={`px-3 py-1 rounded text-xs font-semibold shadow-sm transition-all ${user.role === 'admin' ? 'bg-gray-100 text-gray-400 cursor-not-allowed' :
-                                                                        user.isActive ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100'
-                                                                    }`}
-                                                            >
-                                                                {user.isActive ? 'Suspend Account' : 'Activate Account'}
-                                                            </button>
+                                                        {/* 🎛️ MODIFIED ACTION INTERFACE: DUAL COMPONENT SELECTIONS */}
+                                                        <td className="p-4">
+                                                            <div className="flex items-center justify-center space-x-2">
+                                                                <button
+                                                                    onClick={() => toggleUserActive(user.id)}
+                                                                    disabled={user.role === 'admin'}
+                                                                    className={`px-2.5 py-1 rounded text-xs font-semibold shadow-sm transition-all ${user.role === 'admin'
+                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                        : user.isActive
+                                                                            ? 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
+                                                                            : 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100'
+                                                                        }`}
+                                                                >
+                                                                    {user.isActive ? 'Suspend' : 'Activate'}
+                                                                </button>
+
+                                                                <button
+                                                                    onClick={() => deleteUser(user.id)}
+                                                                    disabled={user.role === 'admin'}
+                                                                    className={`px-2.5 py-1 rounded text-xs font-semibold shadow-sm transition-all ${user.role === 'admin'
+                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                        : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
+                                                                        }`}
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))

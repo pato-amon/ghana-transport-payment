@@ -14,6 +14,8 @@ const routes = require('./src/routes/index');
 const errorHandler = require('./src/middleware/errorHandler');
 const socketHandler = require('./src/socket/socketHandler');
 const { rateLimiter } = require('./src/middleware/rateLimiter');
+// 🔌 IMPORT NEW DB TELEMETRY ENGINE
+const { initDbNotificationListener } = require('./src/services/dbLiveStream');
 
 const app = express();
 const server = http.createServer(app);
@@ -52,7 +54,6 @@ app.set('io', io);
 // ================================
 app.use(`/api/${process.env.API_VERSION}`, routes);
 
-// Add this right above your /health check route
 app.get('/', (req, res) => {
     res.send('Welcome to the TransportGH API Gateway!');
 });
@@ -96,6 +97,10 @@ const startServer = async () => {
         // Test DB connection
         await db.authenticate();
         logger.info('✅ Database connected successfully');
+
+        // 🔥 ARMED POSTGRESQL MUTATION CHANNEL CAPTURING LOGIC
+        // Spin this up right after database connectivity is confirmed
+        await initDbNotificationListener(io);
 
         // Sync models (use migrations in production)
         if (process.env.NODE_ENV === 'development') {
