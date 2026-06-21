@@ -1,6 +1,54 @@
 // backend/src/services/moolreService.js
 const axios = require('axios');
 const logger = require('../config/logger');
+/**
+ * Communicates with Moolre to generate a hosted payment link
+ * @param {Object} ticketDetails - Metadata representing the transaction
+ * @returns {Promise<Object>} - Contains authorization_url and tracking references
+ */
+
+const initiateMoolreCheckout = async (ticketDetails) => {
+    try {
+        // Construct standard payload structural layout aligned to Moolre specs
+        const moolrePayload = {
+            type: 1, // Required by Moolre for link generation
+            amount: parseFloat(ticketDetails.totalPrice).toFixed(2), // Force standard decimal strings
+            currency: "GHS",
+            email: ticketDetails.customerEmail,
+            externalref: ticketDetails.id, // Your internal DB Primary Key UUID/ID string
+            accountnumber: process.env.MOOLRE_MERCHANT_ID,
+            callback: process.env.MOOLRE_CALLBACK_URL,
+            redirect: process.env.MOOLRE_REDIRECT_URL,
+            reusable: "0"
+        };
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-API-USER': process.env.DB_USER, // If your username matches or replace with a dedicated username var
+            'X-API-PUBKEY': process.env.MOOLRE_PUBLIC_KEY,
+            'X-API-KEY': process.env.MOOLRE_SECRET_KEY
+        };
+
+        logger.info(`📡 Requesting payment authorization from Moolre for Ref: ${ticketDetails.id}`);
+
+        // Construct target endpoint mapping cleanly
+        // Note: Moolre endpoints use /embed/link. We handle base formatting dynamically here.
+        const targetUrl = `${process.env.MOOLRE_BASE_URL.replace('/v1', '')}/embed/link`;
+
+        const response = await axios.post(targetUrl, moolrePayload, { headers });
+
+        // Moolre returns { status: 1, data: { authorization_url: '...' } } on clean validation
+        if (response.data && response.data.status === 1) {
+            return response.data.data;
+        } else {
+            throw new Error(response.data.message || 'Moolre failed processing checkout configuration');
+        }
+
+    } catch (error) {
+        logger.error(`❌ Moolre Checkout Initiation Failed for Ref: ${ticketDetails.id}:`, error.message);
+        throw error;
+    }
+};
 
 class MoolReService {
     constructor() {

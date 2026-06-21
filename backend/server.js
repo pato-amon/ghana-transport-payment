@@ -52,6 +52,9 @@ app.set('io', io);
 // ================================
 // ROUTES
 // ================================
+const paymentRoutes = require('./src/routes/paymentRoutes');
+app.use('/api/${process.env.API_VERSION}/payments', paymentRoutes);
+
 app.use(`/api/${process.env.API_VERSION}`, routes);
 
 app.get('/', (req, res) => {

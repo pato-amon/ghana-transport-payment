@@ -5,6 +5,7 @@ const controller = require('../controllers/paymentController');
 const { authenticate } = require('../middleware/auth');
 const { body } = require('express-validator');
 const { validate } = require('../middleware/validate');
+const { handleMoolreWebhook } = require('../controllers/paymentController');
 
 const fareRules = [
     body('busId').isUUID().withMessage('Invalid bus ID'),
@@ -17,6 +18,7 @@ const fareRules = [
 router.post('/fare', authenticate, validate(fareRules), controller.initiateFarePayment);
 router.get('/verify/:reference', authenticate, controller.verifyPayment);
 router.get('/bus/:busNumber', authenticate, controller.getBusByNumber);
+router.post('/callback', handleMoolreWebhook);
 
 // MoolRe Webhook (no auth - secured by signature)
 router.post('/callback', controller.paymentCallback);
