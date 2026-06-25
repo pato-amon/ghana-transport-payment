@@ -1,11 +1,6 @@
 // backend/server.js
 require('dotenv').config();
 
-app.use(express.json({
-    verify: (req, res, buf) => {
-        req.rawBody = buf.toString();
-    }
-}));
 
 const express = require('express');
 const http = require('http');
@@ -24,6 +19,12 @@ const { rateLimiter } = require('./src/middleware/rateLimiter');
 const { initDbNotificationListener } = require('./src/services/dbLiveStream');
 
 const app = express();
+
+app.use(express.json({
+    verify: (req, res, buf) => {
+        req.rawBody = buf.toString();
+    }
+}));
 
 // Required when running behind Render/Railway reverse proxy
 app.set('trust proxy', 1);
