@@ -3,58 +3,69 @@ const jwt = require('jsonwebtoken');
 const logger = require('../config/logger');
 
 module.exports = (io) => {
-    // Store io globally for use in controllers
+    // Store io globally for usage across decoupled transactional backend controllers
     global.io = io;
 
-    // Auth middleware for socket
+    // =======================================
+    // SECURE AUTHENTICATION MIDDLEWARE
+    // =======================================
     io.use((socket, next) => {
-        const token = socket.handshake.auth.token;
-        if (!token) return next(new Error('Authentication required'));
+        // Safe access check using optional chaining to prevent crash states
+        const token = socket.handshake.auth?.token;
+        if (!token) {
+            return next(new Error('Authentication required'));
+        }
 
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            if (!decoded?.userId) {
+                return next(new Error('Invalid token payload'));
+            }
             socket.userId = decoded.userId;
-            socket.role = decoded.role;
+            socket.role = decoded.role || 'user';
             next();
-        } catch {
+        } catch (err) {
+            logger.warn(`⚠️ WebSocket connection rejected. Bad Token Hash. ID: ${socket.id}`);
             next(new Error('Invalid token'));
         }
     });
 
+    // =======================================
+    // STATEFUL NETWORK TRAFFIC LINKS
+    // =======================================
     io.on('connection', (socket) => {
-        logger.info(`🔌 Socket client connected: ${socket.id}`);
+        logger.info(`🔌 Socket verified & connected: User ${socket.userId} [Role: ${socket.role}] | SocketID: ${socket.id}`);
 
-        // Catch the admin-dashboard request to hop into the administrative feed
-        socket.on('join-admin-panel', () => {
-            socket.join('admin-room');
-            logger.info(`🛡️ Client ${socket.id} joined secure channel: [admin-room]`);
-        });
-
-        socket.on('disconnect', () => {
-            logger.info(`❌ Socket client disconnected: ${socket.id}`);
-        });
-    });
-
-    io.on('connection', (socket) => {
-        logger.info(`Socket connected: ${socket.userId} [${socket.role}]`);
-
-        // Join personal room
+        // Automatically drop client into their unique isolated private notification room
         socket.join(`user:${socket.userId}`);
 
-        // Conductor joins bus room
+        // 🛡️ Admin Panel Channel Subscription Handler
+        // Matches up with the `dbLiveStream.js` listener payload target 'admin-room'
+        socket.on('join-admin-panel', () => {
+            socket.join('admin-room');
+            logger.info(`🛡️ Administrative socket client [${socket.id}] joined secure channel: [admin-room]`);
+        });
+
+        // 🚌 Conductor Transport Infrastructure Matching
         socket.on('join:bus', (busId) => {
             socket.join(`bus:${busId}`);
-            logger.info(`Conductor ${socket.userId} joined bus room: ${busId}`);
+            logger.info(`🚍 Conductor ${socket.userId} successfully bound to real-time bus channel: ${busId}`);
         });
 
-        // Operator joins operator room
+        // 🏢 Transit Operator Channel Subscriptions
         socket.on('join:operator', (operatorId) => {
             socket.join(`operator:${operatorId}`);
+            logger.info(`🏢 Corporate Operator ${socket.userId} scaled into agency feed: ${operatorId}`);
         });
 
-        // Handle disconnect
-        socket.on('disconnect', () => {
-            logger.info(`Socket disconnected: ${socket.userId}`);
+        // =======================================
+        // CONNECTION CLEANING LIFECYCLES
+        // =======================================
+        socket.on('disconnect', (reason) => {
+            logger.info(`❌ Socket client link disconnected: User ${socket.userId} | Reason: ${reason}`);
+        });
+        socket.on('reconnect_attempt', () => {
+            logger.warn(`🔄 Reconnect attempt: User ${socket.userId}`);
         });
     });
 };

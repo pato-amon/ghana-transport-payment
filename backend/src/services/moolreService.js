@@ -255,10 +255,11 @@ class MoolReService {
     // Validate MoolRe Webhook
     // ================================
     validateWebhookSignature(payload, signature) {
+        validateWebhookSignature(rawBody, signature)
         const crypto = require('crypto');
         const expected = crypto
             .createHmac('sha256', process.env.MOOLRE_SECRET_KEY)
-            .update(JSON.stringify(payload))
+            .update(reqRawBody) // Use raw body for signature validation
             .digest('hex');
 
         return expected === signature;

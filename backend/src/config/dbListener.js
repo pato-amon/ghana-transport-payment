@@ -1,13 +1,13 @@
-// backend/src/services/dbLiveStream.js
+// backend/src/config/dbListener.js
 const { Client } = require('pg');
-const logger = require('../config/logger');
+const logger = require('./logger'); // Assumes your winston/morgan logger path
 
 /**
  * Initializes the persistent PostgreSQL LISTEN stream
- * @param {Object} io - The active Socket.io instance
+ * @param {Object} io - The initialized Socket.io server instance
  */
-const initDbNotificationListener = async (io) => {
-    // Safe production-fallback configuration verification
+const initDbListener = async (io) => {
+    // ✅ FIX 3: Safe, production-fallback configuration string check
     const pgClient = process.env.DATABASE_URL
         ? new Client({
             connectionString: process.env.DATABASE_URL,
@@ -23,21 +23,22 @@ const initDbNotificationListener = async (io) => {
 
     try {
         await pgClient.connect();
-        logger.info('🐘 PostgreSQL real-time stream listener connected successfully.');
+        logger.info('🐘 PostgreSQL structural listener connected successfully.');
 
-        // Aligning listen channel directly with your PostgreSQL trigger channel
+        // ✅ FIX 1: Align connection strings to catch the explicit trigger channel
         await pgClient.query('LISTEN db_mutation');
 
-        // Capture notifications safely
+        // ✅ FIX 2: Generic payload processing parser block
         pgClient.on('notification', (msg) => {
             try {
                 const payload = JSON.parse(msg.payload);
+
                 logger.info(`🎵 DB Notification Intercepted: [${payload.action}] on table: ${payload.table}`);
 
-                // Send live tracking changes directly down to the admin dashboard room
+                // Broadcast instantly to your administrative room
                 io.to('admin-room').emit('db_mutation', payload);
 
-                // Secondary selective router stream for payment matching logs
+                // Optional target table segregation routines
                 if (payload.table === 'transactions' || payload.table === 'Tickets') {
                     io.emit('transaction_update', payload);
                 }
@@ -46,16 +47,16 @@ const initDbNotificationListener = async (io) => {
             }
         });
 
-        // Reconnection logic if database drops connection links
+        // Handle structural dropped connections gracefully
         pgClient.on('error', async (err) => {
-            logger.error('🚨 PG Listener stream disconnected. Attempting retry...', err);
+            logger.error('🚨 PG Listener connection dropped. Reconnecting...', err);
             await pgClient.end();
-            setTimeout(() => initDbNotificationListener(io), 5000);
+            setTimeout(() => initDbListener(io), 5000); // Retry loop after 5 seconds
         });
 
     } catch (error) {
-        logger.error('❌ Failed to establish standalone real-time PG listener:', error);
+        logger.error('❌ Failed to establish standalone PG listener service client:', error);
     }
 };
 
-module.exports = { initDbNotificationListener };
+module.exports = { initDbListener };

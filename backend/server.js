@@ -1,5 +1,12 @@
 // backend/server.js
 require('dotenv').config();
+
+app.use(express.json({
+    verify: (req, res, buf) => {
+        req.rawBody = buf.toString();
+    }
+}));
+
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
@@ -14,122 +21,181 @@ const routes = require('./src/routes/index');
 const errorHandler = require('./src/middleware/errorHandler');
 const socketHandler = require('./src/socket/socketHandler');
 const { rateLimiter } = require('./src/middleware/rateLimiter');
-// 🔌 IMPORT NEW DB TELEMETRY ENGINE
 const { initDbNotificationListener } = require('./src/services/dbLiveStream');
 
 const app = express();
+
+// Required when running behind Render/Railway reverse proxy
+app.set('trust proxy', 1);
+
 const server = http.createServer(app);
+
+// =======================================
+// SOCKET.IO SETUP
+// =======================================
 const io = new Server(server, {
     cors: {
-        origin: process.env.FRONTEND_URL,
+        origin: [
+            process.env.FRONTEND_URL,
+            'http://localhost:3000',
+            'http://localhost:5173',
+            'https://transport-gh.vercel.app'
+        ],
         methods: ['GET', 'POST'],
+        credentials: true
     }
 });
 
-// ================================
-// MIDDLEWARE
-// ================================
+// =======================================
+// SECURITY + PERFORMANCE MIDDLEWARE
+// =======================================
 app.use(helmet());
 app.use(compression());
-app.use(cors({
-    origin: [process.env.FRONTEND_URL, 'http://localhost:3000'],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
-}));
+
+// =======================================
+// GLOBAL CORS CONFIGURATION
+// =======================================
+app.use(
+    cors({
+        origin: [
+            process.env.FRONTEND_URL,
+            'http://localhost:3000',
+            'http://localhost:5173',
+            'https://transport-gh.vercel.app'
+        ],
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
+    })
+);
+
+// =======================================
+// BODY PARSERS
+// =======================================
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(morgan('combined', {
-    stream: { write: (msg) => logger.info(msg.trim()) }
-}));
 
-// Rate limiting
+// =======================================
+// HTTP REQUEST LOGGING
+// =======================================
+app.use(
+    morgan('combined', {
+        stream: {
+            write: (message) => logger.info(message.trim())
+        }
+    })
+);
+
+// =======================================
+// RATE LIMITER
+// =======================================
 app.use('/api/', rateLimiter);
 
-// Make io accessible in routes
+// Make Socket.IO available globally across components
 app.set('io', io);
 
-// ================================
-// ROUTES
-// ================================
+// =======================================
+// ROUTES DECLARATION
+// =======================================
 const paymentRoutes = require('./src/routes/paymentRoutes');
-app.use('/api/${process.env.API_VERSION}/payments', paymentRoutes);
-
+app.use(`/api/${process.env.API_VERSION}/payments`, paymentRoutes);
 app.use(`/api/${process.env.API_VERSION}`, routes);
 
+// =======================================
+// ROOT ROUTE
+// =======================================
 app.get('/', (req, res) => {
-    res.send('Welcome to the TransportGH API Gateway!');
+    res.status(200).json({
+        success: true,
+        message: 'Welcome to the TransportGH API Gateway',
+        version: process.env.API_VERSION,
+        environment: process.env.NODE_ENV
+    });
 });
 
-// Health check
+// =======================================
+// HEALTH CHECK
+// =======================================
 app.get('/health', (req, res) => {
-    res.json({
+    res.status(200).json({
         status: 'OK',
         service: 'TransportGH API',
         version: process.env.API_VERSION,
-        timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV,
+        timestamp: new Date().toISOString()
     });
 });
 
-// ================================
-// SOCKET.IO
-// ================================
+// =======================================
+// SOCKET HANDLERS BINDING
+// =======================================
 socketHandler(io);
 
-// ================================
-// ERROR HANDLER (must be last)
-// ================================
+// =======================================
+// ERROR PROFILING MIDDLEWARES
+// =======================================
 app.use(errorHandler);
 
-// 404 handler
 app.use('*', (req, res) => {
     res.status(404).json({
         success: false,
-        message: `Route ${req.originalUrl} not found`,
+        message: `Route ${req.originalUrl} not found`
     });
 });
 
-// ================================
-// DATABASE + SERVER START
-// ================================
+// =======================================
+// APPLICATION ENGINE BOOTSTRAPPER
+// =======================================
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
     try {
-        // Test DB connection
         await db.authenticate();
         logger.info('✅ Database connected successfully');
 
-        // 🔥 ARMED POSTGRESQL MUTATION CHANNEL CAPTURING LOGIC
-        // Spin this up right after database connectivity is confirmed
+        // Initialize real-time PostgreSQL listeners
         await initDbNotificationListener(io);
 
-        // Sync models (use migrations in production)
         if (process.env.NODE_ENV === 'development') {
             await db.sync({ alter: true });
-            logger.info('✅ Database synced');
+            logger.info('✅ Database synced schema updates cleanly');
         }
 
         server.listen(PORT, () => {
-            logger.info(`🚀 TransportGH Server running on port ${PORT}`);
+            logger.info('===================================');
+            logger.info('🚀 TransportGH Server Started');
             logger.info(`📡 Environment: ${process.env.NODE_ENV}`);
-            logger.info(`🌐 API: http://localhost:${PORT}/api/${process.env.API_VERSION}`);
+            logger.info(`🌐 Port: ${PORT}`);
+            logger.info(`🔗 API Base: /api/${process.env.API_VERSION}`);
+            logger.info('===================================');
         });
-
     } catch (error) {
-        logger.error('❌ Failed to start server:', error);
+        logger.error('❌ Failed to start server');
+        logger.error(error);
         process.exit(1);
     }
 };
 
 startServer();
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-    logger.info('SIGTERM received. Shutting down gracefully...');
-    await db.close();
-    server.close(() => process.exit(0));
-});
+// =======================================
+// GRACEFUL RECOVERY SHUTDOWNS
+// =======================================
+const handleGracefulShutdown = async (signal) => {
+    logger.info(`${signal} received. Closing connections...`);
+    try {
+        await db.close();
+        server.close(() => {
+            logger.info('✅ Server shut down gracefully');
+            process.exit(0);
+        });
+    } catch (error) {
+        logger.error('Shutdown error:', error);
+        process.exit(1);
+    }
+};
+
+process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));
 
 module.exports = { app, io };

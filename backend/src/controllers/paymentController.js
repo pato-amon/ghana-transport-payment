@@ -173,6 +173,19 @@ exports.paymentCallback = async (req, res) => {
 
         // Acknowledge immediately
         res.status(200).json({ received: true });
+        setImmediate(() => processWebhook(payload));
+
+        const processWebhook = async (payload) => {
+            const dbTransaction = await sequelize.transaction();
+            try {
+                await this.handlePaymentCallback(payload, dbTransaction);
+            } catch (err) {
+                await dbTransaction.rollback();
+                logger.error(err);
+            }
+        };
+
+        if (transaction.processedAt) return;
 
         const { reference, status, amount, metadata } = payload;
 
