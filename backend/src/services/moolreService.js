@@ -238,9 +238,36 @@ class MoolReService {
     // ================================
     // SMS API — Send SMS
     // ================================
+    isDemoModeEnabled() {
+        return ['true', '1', 'yes', 'on'].includes(String(process.env.MOOLRE_SMS_DEMO_MODE || '').toLowerCase());
+    }
+
+    buildDemoFallbackResponse({ to, message, senderId }) {
+        return {
+            status: 1,
+            code: 'DEMO_FALLBACK',
+            message: 'Demo mode enabled. SMS delivery simulated successfully.',
+            data: {
+                mode: 'demo',
+                recipient: to,
+                senderId,
+                message,
+            },
+        };
+    }
+
     async sendSMS({ to, message, senderId }) {
         try {
+            if (this.isDemoModeEnabled()) {
+                logger.warn('🧪 Demo SMS fallback enabled; skipping real Moolre send', {
+                    recipient: to,
+                    senderId,
+                });
+                return this.buildDemoFallbackResponse({ to, message, senderId });
+            }
+
             const recipients = Array.isArray(to) ? to : [to];
+            const smsBaseUrl = process.env.MOOLRE_SMS_BASE_URL || process.env.MOOLRE_BASE_URL || 'https://api.moolre.com';
             const payload = {
                 type: 1,
                 senderid: senderId || process.env.MOOLRE_SMS_SENDER_ID,
@@ -251,13 +278,13 @@ class MoolReService {
             };
 
             logger.info('📤 Sending SMS via Moolre', {
-                endpoint: `${process.env.MOOLRE_SMS_BASE_URL}/open/sms/send`,
+                endpoint: `${smsBaseUrl}/open/sms/send`,
                 senderid: payload.senderid,
                 recipients,
             });
 
             const response = await axios.post(
-                `${process.env.MOOLRE_SMS_BASE_URL}/open/sms/send`,
+                `${smsBaseUrl}/open/sms/send`,
                 payload,
                 {
                     headers: {
@@ -267,11 +294,22 @@ class MoolReService {
                 }
             );
 
+            const moolreResponse = response?.data;
+            const isSuccessful = moolreResponse?.status === 1 || moolreResponse?.status === '1' || moolreResponse?.status === true;
+
+            if (!isSuccessful) {
+                logger.error(`❌ SMS sending failed to: ${to}`, {
+                    message: moolreResponse?.message || 'Moolre SMS send failed',
+                    moolreError: moolreResponse,
+                });
+                return null;
+            }
+
             logger.info(`✅ SMS sent successfully to: ${to}`, {
                 status: response.status,
-                moolreResponse: response.data,
+                moolreResponse,
             });
-            return response.data;
+            return moolreResponse;
         } catch (error) {
             logger.error(`❌ SMS sending failed to: ${to}`, {
                 message: error.message,

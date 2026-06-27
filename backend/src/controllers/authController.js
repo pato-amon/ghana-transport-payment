@@ -53,7 +53,7 @@ exports.register = async (req, res) => {
                 otpExpiresAt: new Date(Date.now() + parseInt(process.env.OTP_EXPIRES_MINUTES) * 60000),
             });
 
-            await moolreService.sendOTP({
+            const smsResult = await moolreService.sendOTP({
                 to: phone,
                 otp,
                 expiresMinutes: process.env.OTP_EXPIRES_MINUTES,
@@ -61,8 +61,11 @@ exports.register = async (req, res) => {
 
             return res.status(200).json({
                 success: true,
-                message: 'OTP resent to your phone',
+                message: smsResult?.code === 'DEMO_FALLBACK'
+                    ? `OTP generated in demo mode. Use code ${otp} for testing.`
+                    : 'OTP resent to your phone',
                 userId: existingUser.id,
+                demoOtp: smsResult?.code === 'DEMO_FALLBACK' ? otp : undefined,
             });
         }
 
@@ -85,7 +88,7 @@ exports.register = async (req, res) => {
         });
 
         // Send OTP via MoolRe SMS
-        await moolreService.sendOTP({
+        const smsResult = await moolreService.sendOTP({
             to: phone,
             otp,
             expiresMinutes: process.env.OTP_EXPIRES_MINUTES,
@@ -95,8 +98,11 @@ exports.register = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: `OTP sent to ${phone}. Valid for ${process.env.OTP_EXPIRES_MINUTES} minutes.`,
+            message: smsResult?.code === 'DEMO_FALLBACK'
+                ? `OTP generated in demo mode. Use code ${otp} for testing.`
+                : `OTP sent to ${phone}. Valid for ${process.env.OTP_EXPIRES_MINUTES} minutes.`,
             userId: user.id,
+            demoOtp: smsResult?.code === 'DEMO_FALLBACK' ? otp : undefined,
         });
 
     } catch (error) {
@@ -308,7 +314,7 @@ exports.resendOTP = async (req, res) => {
             otpExpiresAt: new Date(Date.now() + parseInt(process.env.OTP_EXPIRES_MINUTES) * 60000),
         });
 
-        await moolreService.sendOTP({
+        const smsResult = await moolreService.sendOTP({
             to: user.phone,
             otp,
             expiresMinutes: process.env.OTP_EXPIRES_MINUTES,
@@ -316,7 +322,10 @@ exports.resendOTP = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: 'New OTP sent to your phone',
+            message: smsResult?.code === 'DEMO_FALLBACK'
+                ? `OTP generated in demo mode. Use code ${otp} for testing.`
+                : 'New OTP sent to your phone',
+            demoOtp: smsResult?.code === 'DEMO_FALLBACK' ? otp : undefined,
         });
 
     } catch (error) {

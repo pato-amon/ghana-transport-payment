@@ -1,0 +1,2 @@
+{"endpoint":"undefined/open/sms/send","level":"info","message":"📤 Sending SMS via Moolre","recipients":["233554000000"],"service":"transportgh-api","timestamp":"2026-06-26 22:42:26"}
+{"level":"error","message":"❌ SMS sending failed to: 233554000000 Invalid URL","service":"transportgh-api","timestamp":"2026-06-26 22:42:26"}
