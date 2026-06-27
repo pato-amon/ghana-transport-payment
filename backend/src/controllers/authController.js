@@ -251,8 +251,26 @@ exports.login = async (req, res) => {
             });
         }
 
+        // Defensive: ensure a PIN was provided
+        if (!pin) {
+            return res.status(400).json({
+                success: false,
+                message: 'PIN is required for login.',
+            });
+        }
+
         // Verify PIN
-        const isPinCorrect = await user.comparePin(pin);
+        let isPinCorrect = false;
+        try {
+            isPinCorrect = await user.comparePin(pin);
+        } catch (pinErr) {
+            logger.error(`PIN comparison failed for ${phone}: ${pinErr.message}`);
+            return res.status(500).json({
+                success: false,
+                message: 'Login failed while verifying credentials. Please try again.',
+            });
+        }
+
         if (!isPinCorrect) {
             return res.status(401).json({
                 success: false,
