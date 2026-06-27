@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
 import { ROLES } from '../../utils/constants';
+import authService from '../../services/authService';
 
 const LoginPage = () => {
     const navigate = useNavigate();
@@ -48,22 +49,14 @@ const LoginPage = () => {
                 return;
             }
 
-            const response = await fetch('http://localhost:5000/api/v1/auth/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    phone: cleanPhone,
-                    pin: password,
-                    role,
-                }),
+            const data = await authService.login({
+                phone: cleanPhone,
+                pin: password,
+                role,
             });
 
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                const serverError = data.message || data.error || (data.errors && data.errors[0]?.msg) || 'Login failed. Please try again.';
+            if (!data?.success) {
+                const serverError = data?.message || 'Login failed. Please try again.';
                 throw new Error(serverError);
             }
 

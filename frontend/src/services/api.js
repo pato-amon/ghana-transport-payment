@@ -3,13 +3,14 @@ import axios from 'axios';
 import useAuthStore from '../store/authStore';
 import toast from 'react-hot-toast';
 
-const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+const apiBaseUrl = process.env.REACT_APP_API_URL || (
+    typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+        ? 'https://ghana-transport-payment.onrender.com/api/v1'
+        : 'http://localhost:5000/api/v1'
+);
 
-if (!process.env.REACT_APP_API_URL && typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    console.warn(
-        'REACT_APP_API_URL is not set in production. The frontend is using localhost fallback:',
-        apiBaseUrl
-    );
+if (!process.env.REACT_APP_API_URL && typeof window !== 'undefined') {
+    console.info('Using API base URL:', apiBaseUrl);
 }
 
 const api = axios.create({

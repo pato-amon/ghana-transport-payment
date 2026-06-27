@@ -1,13 +1,17 @@
 // inside frontend/src/pages/AdminDashboard.jsx
 import React, { useState, useEffect } from 'react';
-import { io } from 'socket.io-client'; // 👈 Import the socket client engine
+import { io } from 'socket.io-client';
+import useAuthStore from '../store/authStore';
 
 export default function AdminDashboard() {
+    const token = useAuthStore((state) => state.token);
     const [activeTab, setActiveTab] = useState('overview');
     const [metrics, setMetrics] = useState(null);
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const apiBaseUrl = process.env.REACT_APP_API_URL || 'https://ghana-transport-payment.onrender.com/api/v1';
+    const socketBaseUrl = process.env.REACT_APP_SOCKET_URL || 'https://ghana-transport-payment.onrender.com';
 
     // 1. Existing initial database query loader hook
     useEffect(() => {
@@ -17,7 +21,7 @@ export default function AdminDashboard() {
     // 2. 🔥 NEW: Real-time PostgreSQL Sync Hook
     useEffect(() => {
         // Connect to the backend socket gateway
-        const socket = io('http://localhost:5000');
+        const socket = io(socketBaseUrl);
 
         socket.on('connect', () => {
             console.log('📡 Connected directly to live backend event pipeline.');
@@ -54,7 +58,6 @@ export default function AdminDashboard() {
         setLoading(true);
         setError('');
 
-        const token = localStorage.getItem('token');
         const headers = {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -89,12 +92,12 @@ export default function AdminDashboard() {
         // LIVE DATABASE FALLBACK
         try {
             if (activeTab === 'overview') {
-                const res = await fetch('http://localhost:5000/api/v1/admin/metrics', { headers });
+                const res = await fetch(`${apiBaseUrl}/admin/metrics`, { headers });
                 const resData = await res.json();
                 if (resData.success) setMetrics(resData.data);
                 else setError(resData.message);
             } else if (activeTab === 'users') {
-                const res = await fetch('http://localhost:5000/api/v1/admin/users', { headers });
+                const res = await fetch(`${apiBaseUrl}/admin/users`, { headers });
                 const resData = await res.json();
                 if (resData.success) setUsers(resData.data);
                 else setError(resData.message);
@@ -107,8 +110,6 @@ export default function AdminDashboard() {
     };
 
     const toggleUserActive = async (userId) => {
-        const token = localStorage.getItem('token');
-
         // 🎟️ ESCAPE HATCH 2: Handle Interactive Status Toggling Instantly
         if (!token || token === 'mock-signed-admin-jwt-token-xyz789') {
             console.log(`🔄 Mock status toggle processed for account ID: ${userId}`);
@@ -118,7 +119,7 @@ export default function AdminDashboard() {
 
         // LIVE DATABASE STATUS MUTATION
         try {
-            const res = await fetch(`http://localhost:5000/api/v1/admin/users/${userId}/toggle-status`, {
+            const res = await fetch(`${apiBaseUrl}/admin/users/${userId}/toggle-status`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -152,7 +153,7 @@ export default function AdminDashboard() {
 
         // LIVE DATABASE REST PURGE ROUTE
         try {
-            const res = await fetch(`http://localhost:5000/api/v1/admin/users/${userId}`, {
+            const res = await fetch(`${apiBaseUrl}/admin/users/${userId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`,
