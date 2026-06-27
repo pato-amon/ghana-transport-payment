@@ -10,9 +10,7 @@ const { SMS_TEMPLATES, ROLES } = require('../config/constants');
 // ================================
 // Helper: Generate OTP
 // ================================
-const generateOTP = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-};
+const generateOTP = () => moolreService.generateOTP();
 
 // ================================
 // Helper: Generate JWT
@@ -55,9 +53,10 @@ exports.register = async (req, res) => {
                 otpExpiresAt: new Date(Date.now() + parseInt(process.env.OTP_EXPIRES_MINUTES) * 60000),
             });
 
-            await moolreService.sendSMS({
+            await moolreService.sendOTP({
                 to: phone,
-                message: SMS_TEMPLATES.OTP(otp),
+                otp,
+                expiresMinutes: process.env.OTP_EXPIRES_MINUTES,
             });
 
             return res.status(200).json({
@@ -86,9 +85,10 @@ exports.register = async (req, res) => {
         });
 
         // Send OTP via MoolRe SMS
-        await moolreService.sendSMS({
+        await moolreService.sendOTP({
             to: phone,
-            message: SMS_TEMPLATES.OTP(otp),
+            otp,
+            expiresMinutes: process.env.OTP_EXPIRES_MINUTES,
         });
 
         logger.info(`New user registered: ${phone} [${role}]`);
@@ -308,9 +308,10 @@ exports.resendOTP = async (req, res) => {
             otpExpiresAt: new Date(Date.now() + parseInt(process.env.OTP_EXPIRES_MINUTES) * 60000),
         });
 
-        await moolreService.sendSMS({
+        await moolreService.sendOTP({
             to: user.phone,
-            message: SMS_TEMPLATES.OTP(otp),
+            otp,
+            expiresMinutes: process.env.OTP_EXPIRES_MINUTES,
         });
 
         res.status(200).json({

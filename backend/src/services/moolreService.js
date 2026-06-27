@@ -222,31 +222,62 @@ class MoolReService {
         }
     }
 
+    generateOTP() {
+        return Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    buildOtpMessage(otp, expiresMinutes = process.env.OTP_EXPIRES_MINUTES) {
+        return `Your TransportGH OTP is: ${otp}. Valid for ${expiresMinutes} minutes. Do not share this code.`;
+    }
+
+    async sendOTP({ to, otp, expiresMinutes, senderId }) {
+        const message = this.buildOtpMessage(otp, expiresMinutes);
+        return this.sendSMS({ to, message, senderId });
+    }
+
     // ================================
     // SMS API — Send SMS
     // ================================
     async sendSMS({ to, message, senderId }) {
         try {
-            const response = await axios.post(
-                `${process.env.MOOLRE_SMS_BASE_URL}/sms/send`,
-                {
-                    to: Array.isArray(to) ? to : [to],
+            const recipients = Array.isArray(to) ? to : [to];
+            const payload = {
+                type: 1,
+                senderid: senderId || process.env.MOOLRE_SMS_SENDER_ID,
+                messages: recipients.map((recipient) => ({
+                    recipient,
                     message,
-                    sender_id: senderId || process.env.MOOLRE_SMS_SENDER_ID,
-                },
+                })),
+            };
+
+            logger.info('📤 Sending SMS via Moolre', {
+                endpoint: `${process.env.MOOLRE_SMS_BASE_URL}/open/sms/send`,
+                senderid: payload.senderid,
+                recipients,
+            });
+
+            const response = await axios.post(
+                `${process.env.MOOLRE_SMS_BASE_URL}/open/sms/send`,
+                payload,
                 {
                     headers: {
-                        'Authorization': `Bearer ${process.env.MOOLRE_SECRET_KEY}`,
                         'Content-Type': 'application/json',
+                        'X-API-VASKEY': process.env.MOOLRE_SECRET_KEY,
                     },
                 }
             );
 
-            logger.info(`SMS sent to: ${to}`);
+            logger.info(`✅ SMS sent successfully to: ${to}`, {
+                status: response.status,
+                moolreResponse: response.data,
+            });
             return response.data;
         } catch (error) {
-            // Don't throw — SMS failure shouldn't break payment flow
-            logger.error(`SMS sending failed to: ${to}`, error.message);
+            logger.error(`❌ SMS sending failed to: ${to}`, {
+                message: error.message,
+                status: error.response?.status,
+                moolreError: error.response?.data,
+            });
             return null;
         }
     }
