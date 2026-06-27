@@ -11,9 +11,10 @@ const OTPVerifyPage = () => {
     const location = useLocation();
     const setUser = useAuthStore((state) => state.setUser);
 
-    const { phone, userId } = location.state || {};
+    const { phone, userId, demoOtp: initialDemoOtp } = location.state || {};
 
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
+    const [demoOtp, setDemoOtp] = useState(initialDemoOtp || '');
     const [loading, setLoading] = useState(false);
     const [resendTimer, setTimer] = useState(60);
     const [canResend, setCanResend] = useState(false);
@@ -78,10 +79,25 @@ const OTPVerifyPage = () => {
         }
     };
 
+    useEffect(() => {
+        if (!demoOtp && userId) {
+            const storedDemoOtp = sessionStorage.getItem(`demoOtp_${userId}`);
+            if (storedDemoOtp) {
+                setDemoOtp(storedDemoOtp);
+            }
+        }
+    }, [demoOtp, userId]);
+
     const handleResend = async () => {
         try {
-            await authService.resendOTP({ userId, phone });
-            toast.success('New OTP sent!');
+            const response = await authService.resendOTP({ userId, phone });
+            if (response?.demoOtp) {
+                setDemoOtp(response.demoOtp);
+                sessionStorage.setItem(`demoOtp_${userId}`, response.demoOtp);
+                toast.success(`Demo OTP generated: ${response.demoOtp}`);
+            } else {
+                toast.success('New OTP sent!');
+            }
             setTimer(60);
             setCanResend(false);
         } catch {
@@ -111,6 +127,16 @@ const OTPVerifyPage = () => {
                     We sent a 6-digit code to{' '}
                     <span className="font-bold text-gray-700">{phone}</span>
                 </p>
+
+                {demoOtp && (
+                    <div className="mb-6 rounded-2xl border border-dashed border-ghana-green/40 bg-green-50 p-4 text-center">
+                        <p className="text-ghana-green text-sm font-semibold">Demo OTP Active</p>
+                        <p className="text-gray-700 text-lg font-bold mt-1">{demoOtp}</p>
+                        <p className="text-gray-500 text-xs mt-1">
+                            Use this code during the hackathon demo since SMS delivery is disabled.
+                        </p>
+                    </div>
+                )}
 
                 {/* OTP Input */}
                 <div className="flex justify-center gap-3 mb-8" onPaste={handlePaste}>

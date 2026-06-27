@@ -67,9 +67,16 @@ const RegisterPage = () => {
         try {
             setLoading(true);
             const response = await authService.register(data);
+            if (response?.demoOtp) {
+                sessionStorage.setItem(`demoOtp_${response.userId}`, response.demoOtp);
+            }
             toast.success('OTP sent to your phone!');
             navigate('/verify', {
-                state: { phone: data.phone, userId: response.userId }
+                state: {
+                    phone: data.phone,
+                    userId: response.userId,
+                    demoOtp: response.demoOtp,
+                },
             });
         } catch (error) {
             toast.error(error.message || 'Registration failed. Try again.');
@@ -97,6 +104,9 @@ const RegisterPage = () => {
                     </h1>
                     <p className="text-gray-500 text-sm mt-1">
                         Join TransportGH — it's free
+                    </p>
+                    <p className="mt-3 text-xs text-ghana-green/90">
+                        Demo mode is active: if SMS delivery is unavailable, the OTP will appear on the next screen.
                     </p>
                 </motion.div>
             </div>

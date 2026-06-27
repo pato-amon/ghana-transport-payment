@@ -16,7 +16,12 @@ const authService = {
     // 3. Verify OTP code
     verifyOTP: async (otpData) => {
         return await api.post('/auth/verify-otp', otpData);
-    }
+    },
+
+    // 4. Resend OTP
+    resendOTP: async (payload) => {
+        return await api.post('/auth/resend-otp', payload);
+    },
 };
 
 export default authService;
