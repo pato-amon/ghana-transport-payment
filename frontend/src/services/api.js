@@ -3,8 +3,17 @@ import axios from 'axios';
 import useAuthStore from '../store/authStore';
 import toast from 'react-hot-toast';
 
+const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+
+if (!process.env.REACT_APP_API_URL && typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    console.warn(
+        'REACT_APP_API_URL is not set in production. The frontend is using localhost fallback:',
+        apiBaseUrl
+    );
+}
+
 const api = axios.create({
-    baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1',
+    baseURL: apiBaseUrl,
     timeout: 30000,
     headers: { 'Content-Type': 'application/json' },
 });
@@ -23,8 +32,10 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response.data,
     (error) => {
-        const message = error.response?.data?.message || 'Something went wrong';
         const status = error.response?.status;
+        const serverMessage = error.response?.data?.message;
+        const detail = error.response?.data?.detail || error.response?.data?.error || error.message;
+        const message = serverMessage || detail || 'Something went wrong';
 
         if (status === 401) {
             useAuthStore.getState().logout();
